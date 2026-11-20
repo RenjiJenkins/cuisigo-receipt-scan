@@ -1,0 +1,21 @@
+# Secrets: keys live only in .env files, which are never committed
+.env
+.env.*
+!.env.example
+
+# Local tooling
+.claude/
+
+# Python
+.venv/
+__pycache__/
+.pytest_cache/
+
+# Node / Expo (more in mobile/.gitignore)
+node_modules/
+.expo/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini

@@ -1,0 +1,20 @@
+{
+  "is_receipt": true,
+  "store_name": "Metro",
+  "purchase_date": "2026-11-18",
+  "currency": "CAD",
+  "total": 48.62,
+  "lines": [
+    {"raw_text": "ORG BNLS CHKN BRST", "is_food": true, "ingredient": "chicken breast", "category": "meat_seafood", "quantity": 0.856, "unit": "kg", "price": 14.21, "confidence": "high"},
+    {"raw_text": "BANANES", "is_food": true, "ingredient": "banana", "category": "produce", "quantity": 1.1, "unit": "kg", "price": 1.94, "confidence": "high"},
+    {"raw_text": "LAIT 2% 2L", "is_food": true, "ingredient": "2% milk", "category": "dairy_eggs", "quantity": 1, "unit": "each", "price": 4.99, "confidence": "high"},
+    {"raw_text": "LAIT 2% 2L", "is_food": true, "ingredient": "2% milk", "category": "dairy_eggs", "quantity": 1, "unit": "each", "price": 4.99, "confidence": "high"},
+    {"raw_text": "TOM ROMA", "is_food": true, "ingredient": "roma tomato", "category": "produce", "quantity": 0.62, "unit": "kg", "price": 2.47, "confidence": "high"},
+    {"raw_text": "OIGNONS JAUNES 3LB", "is_food": true, "ingredient": "yellow onion", "category": "produce", "quantity": 1, "unit": "pack", "price": 3.49, "confidence": "high"},
+    {"raw_text": "PC BASMATI RICE 2KG", "is_food": true, "ingredient": "basmati rice", "category": "pantry", "quantity": 1, "unit": "each", "price": 7.99, "confidence": "high"},
+    {"raw_text": "GARLIC", "is_food": true, "ingredient": "garlic", "category": "produce", "quantity": null, "unit": null, "price": 0.99, "confidence": "high"},
+    {"raw_text": "CUMIN MOULU", "is_food": true, "ingredient": "ground cumin", "category": "spices_condiments", "quantity": null, "unit": null, "price": 3.29, "confidence": "medium"},
+    {"raw_text": "SAC REUTIL", "is_food": false, "ingredient": null, "category": "non_food", "quantity": null, "unit": null, "price": 0.25, "confidence": "high"},
+    {"raw_text": "DEPOT CONSIGNE", "is_food": false, "ingredient": null, "category": "non_food", "quantity": null, "unit": null, "price": 0.20, "confidence": "high"}
+  ]
+}
