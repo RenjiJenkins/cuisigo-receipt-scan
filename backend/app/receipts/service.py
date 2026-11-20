@@ -41,6 +41,7 @@ For every purchased line item on the receipt, emit one entry in `lines`:
 - `ingredient` is the generic thing a recipe would call for: singular, lowercase, no brand, no size. Keep meaningful qualifiers (e.g. "greek yogurt", "brown rice", "smoked paprika").
 - Receipts may be in English or French (Canada). Write `ingredient` in {lang_name}.
 - Quantity/unit: use weight lines like "0.856 kg @ $4.39/kg" or multipliers like "2 @ 1.99" when present; otherwise leave null.
+- Category: oils, vinegar, flour, sugar, rice, pasta, grains, canned and dry goods are "pantry"; dried herbs, spices, salt, sauces and condiments are "spices_condiments"; cheese, milk, yogurt, butter and eggs are "dairy_eggs".
 - Mark non-food items (bags, deposits, cleaning supplies, toiletries, gift cards) with is_food=false, category "non_food", ingredient null.
 - Skip subtotal, tax, payment, loyalty points and discount lines entirely.
 - If a line is too cut off or blurry to decode, still include it with your best guess and confidence "low".
