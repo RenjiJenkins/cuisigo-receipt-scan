@@ -62,7 +62,8 @@ Errors return `{"detail": "<human-readable message>"}` with status 400, 413, 422
 Settings (`backend/.env`):
 
 - `GEMINI_API_KEY` (required): your Gemini key.
-- `GEMINI_MODEL` (default `gemini-3.8-flash`): any Gemini model that accepts images and structured output. `gemini-3.5-flash-lite` is cheaper.
+- `GEMINI_MODEL` (default `gemini-3.8-flash`): any Gemini model that accepts images and structured output. `gemini-3.5-flash-lite` is cheaper and faster.
+- `GEMINI_FALLBACK_MODEL` (default `gemini-3.5-flash-lite`): if the main model is overloaded (503) or rate-limited, the API retries once and then uses this model. The response's `model` field says which model answered.
 - `RECEIPT_MOCK`: set to `1` to return the canned receipt.
 
 If Gemini's safety filter blocks a photo, the API returns a 422 with "This image couldn't be processed."

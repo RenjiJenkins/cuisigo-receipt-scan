@@ -121,3 +121,36 @@ def test_gemini_safety_block_is_422(monkeypatch):
     _fake_gemini(monkeypatch, {"candidates": [{"content": {"role": "model", "parts": []}, "finishReason": "SAFETY"}]})
     r = TestClient(app).post("/receipts/scan", files={"image": ("r.png", _png_bytes(), "image/png")})
     assert r.status_code == 422
+
+
+def test_falls_back_when_main_model_is_busy(monkeypatch):
+    import json as _json
+
+    import httpx
+
+    import app.receipts.service as svc
+    receipt = _json.loads(svc.MOCK_FILE.read_text(encoding="utf-8"))
+    ok = {"candidates": [{"content": {"role": "model", "parts": [{"text": _json.dumps(receipt)}]}, "finishReason": "STOP"}]}
+    busy = {"error": {"code": 503, "message": "high demand", "status": "UNAVAILABLE"}}
+    calls = []
+
+    async def fake_send(self, request, **kw):
+        calls.append(str(request.url))
+        if "gemini-3.8-flash" in str(request.url):
+            return httpx.Response(503, json=busy, request=request)
+        return httpx.Response(200, json=ok, request=request)
+
+    async def no_sleep(_):
+        return None
+
+    monkeypatch.setenv("RECEIPT_MOCK", "0")
+    monkeypatch.setenv("GEMINI_API_KEY", "test-key")
+    monkeypatch.setenv("GEMINI_MODEL", "gemini-3.8-flash")
+    monkeypatch.setenv("GEMINI_FALLBACK_MODEL", "gemini-3.5-flash-lite")
+    monkeypatch.setattr(svc, "_client", None)
+    monkeypatch.setattr(svc.asyncio, "sleep", no_sleep)
+    monkeypatch.setattr(httpx.AsyncClient, "send", fake_send)
+    r = TestClient(app).post("/receipts/scan", files={"image": ("r.png", _png_bytes(), "image/png")})
+    assert r.status_code == 200, r.text
+    assert r.json()["model"] == "gemini-3.5-flash-lite"
+    assert sum("gemini-3.8-flash" in c for c in calls) == 2

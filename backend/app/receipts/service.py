@@ -1,6 +1,9 @@
 """Receipt image -> ingredient list, using Gemini vision + structured (JSON schema) output."""
+import asyncio
+import contextvars
 import io
 import json
+import logging
 import os
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
@@ -46,8 +49,17 @@ If the image is not a receipt, set is_receipt=false and return no lines."""
 LANG_NAMES = {"en": "English", "fr": "French"}
 
 
+log = logging.getLogger("uvicorn.error")
+served_by: contextvars.ContextVar[str] = contextvars.ContextVar("served_by", default="")
+
+
 def model_name() -> str:
     return os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
+
+
+def fallback_model_name() -> str:
+    """Used when the main model is overloaded. Set GEMINI_FALLBACK_MODEL= (empty) to disable."""
+    return os.getenv("GEMINI_FALLBACK_MODEL", "gemini-3.5-flash-lite").strip()
 
 
 def mock_enabled() -> bool:
@@ -102,27 +114,42 @@ async def extract_receipt(image: bytes, mime_type: str, lang: str = "en") -> Par
         response_mime_type="application/json",
         response_schema=ParsedReceipt,
     )
-    try:
-        response = await _get_client().aio.models.generate_content(
-            model=model_name(),
-            contents=[
-                types.Part.from_bytes(data=image, mime_type=mime_type),
-                "Extract the ingredients from this receipt.",
-            ],
-            config=config,
-        )
-    except errors.ClientError as exc:
-        if exc.code == 429:
-            raise ReceiptParseError("Too many scans right now, try again in a moment.", 429) from exc
-        if exc.code in (401, 403) or "API_KEY" in str(exc):
-            raise ReceiptParseError("GEMINI_API_KEY is invalid or lacks access to this model.", 500) from exc
-        if exc.code == 404:
-            raise ReceiptParseError(f"Gemini model '{model_name()}' was not found. Check GEMINI_MODEL.", 500) from exc
-        raise ReceiptParseError(f"Request rejected: {exc.message}", 400) from exc
-    except errors.ServerError as exc:
-        raise ReceiptParseError("The receipt reader is unavailable, try again.", 502) from exc
-    except httpx.HTTPError as exc:
-        raise ReceiptParseError("Could not reach the receipt reader.", 502) from exc
+    contents = [
+        types.Part.from_bytes(data=image, mime_type=mime_type),
+        "Extract the ingredients from this receipt.",
+    ]
+    response = None
+    # Try the main model (twice: Gemini 503s are usually brief), then the fallback model.
+    attempts = [model_name(), model_name()]
+    if fallback_model_name() and fallback_model_name() != model_name():
+        attempts.append(fallback_model_name())
+    for i, model in enumerate(attempts):
+        last = i == len(attempts) - 1
+        try:
+            response = await _get_client().aio.models.generate_content(model=model, contents=contents, config=config)
+            break
+        except errors.ClientError as exc:
+            log.warning("Gemini %s rejected the request: %s %s", model, exc.code, exc.message)
+            if exc.code == 429:
+                if not last:
+                    continue
+                raise ReceiptParseError("Too many scans right now, try again in a moment.", 429) from exc
+            if exc.code in (401, 403) or "API_KEY" in str(exc):
+                raise ReceiptParseError("GEMINI_API_KEY is invalid or lacks access to this model.", 500) from exc
+            if exc.code == 404:
+                raise ReceiptParseError(f"Gemini model '{model}' was not found. Check GEMINI_MODEL.", 500) from exc
+            raise ReceiptParseError(f"Request rejected: {exc.message}", 400) from exc
+        except errors.ServerError as exc:
+            log.warning("Gemini %s unavailable: %s %s", model, exc.code, exc.message)
+            if last:
+                raise ReceiptParseError("The receipt reader is busy right now, try again in a moment.", 503) from exc
+            if model == attempts[i + 1]:
+                await asyncio.sleep(1.5)
+        except httpx.HTTPError as exc:
+            log.warning("Could not reach Gemini: %r", exc)
+            raise ReceiptParseError("Could not reach the receipt reader.", 502) from exc
+    assert response is not None
+    served_by.set(model)
 
     if response.prompt_feedback and response.prompt_feedback.block_reason:
         raise ReceiptParseError("This image couldn't be processed.", 422)
@@ -191,5 +218,5 @@ async def scan_receipt(data: bytes, lang: str = "en") -> ReceiptScanResponse:
         total=receipt.total,
         ingredients=ingredients,
         non_food_lines=non_food,
-        model="mock" if mock_enabled() else model_name(),
+        model="mock" if mock_enabled() else (served_by.get() or model_name()),
     )
